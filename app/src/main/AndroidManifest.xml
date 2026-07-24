@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Optional: lets the app fetch Google Fonts when wifi/data is available.
+         Everything still works offline without it. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Needed only for the "Ask Jarvis" mic / voice-command button. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Jarvis"
+        android:hardwareAccelerated="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:theme="@style/Theme.Jarvis">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

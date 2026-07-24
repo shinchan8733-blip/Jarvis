@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Jarvis — Daily Routine Voice Coach</title>
+<meta name="theme-color" content="#0A0E14">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E14;
+    --surface:#12181F;
+    --surface-2:#1A222C;
+    --line:#232D39;
+    --signal:#5EE6C8;
+    --signal-soft:rgba(94,230,200,0.14);
+    --amber:#F2A65A;
+    --amber-soft:rgba(242,166,90,0.14);
+    --rose:#E0637A;
+    --text:#E7ECF2;
+    --text-muted:#8492A0;
+    --text-faint:#4E5C6B;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 50% -10%, #101823 0%, var(--bg) 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    padding-bottom:96px;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px 6px;
+  }
+  .topbar .date{font-size:13px; color:var(--text-muted); letter-spacing:.02em;}
+  .topbar .clock{font-size:15px; color:var(--text); letter-spacing:.04em;}
+  .streak-pill{
+    display:flex; align-items:center; gap:6px;
+    background:var(--surface); border:1px solid var(--line);
+    padding:6px 12px; border-radius:999px; font-size:13px; color:var(--amber);
+  }
+
+  /* ---------- orb ---------- */
+  .orb-wrap{
+    display:flex; flex-direction:column; align-items:center;
+    padding:22px 20px 8px;
+  }
+  .orb-stage{
+    position:relative; width:220px; height:220px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ring{
+    position:absolute; border-radius:50%;
+    border:1px solid var(--line);
+  }
+  .ring.r1{ inset:0; }
+  .ring.r2{ inset:22px; border-color:#2C3B4D; }
+  .orb{
+    position:relative; width:118px; height:118px; border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #B7FBEA 0%, var(--signal) 40%, #1B8F7D 100%);
+    box-shadow:0 0 40px rgba(94,230,200,0.25), inset 0 -14px 24px rgba(0,0,0,0.25);
+    transition:transform .4s ease, box-shadow .4s ease;
+    animation:breathe 4.2s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.045); }
+  }
+  body.speaking .orb{
+    animation:pulseSpeak 0.9s ease-in-out infinite;
+    box-shadow:0 0 60px rgba(94,230,200,0.45), inset 0 -14px 24px rgba(0,0,0,0.25);
+  }
+  @keyframes pulseSpeak{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.09); }
+  }
+  body.speaking .ring.r1{ border-color:rgba(94,230,200,0.55); }
+  body.speaking .ring.r2{ border-color:rgba(94,230,200,0.35); }
+  @media (prefers-reduced-motion: reduce){
+    .orb, body.speaking .orb{ animation:none; }
+  }
+
+  .task-status{
+    margin-top:18px; text-align:center; max-width:320px;
+  }
+  .task-eyebrow{
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint);
+  }
+  .task-eyebrow.live{ color:var(--signal); }
+  .task-name{ font-size:22px; font-weight:600; margin:6px 0 4px; }
+  .task-time{ font-size:13px; color:var(--text-muted); }
+  .task-desc{ font-size:13px; color:var(--text-muted); margin-top:8px; line-height:1.5; }
+
+  /* ---------- control row ---------- */
+  .quick-actions{
+    display:flex; gap:10px; justify-content:center; padding:18px 20px 4px; flex-wrap:wrap;
+  }
+  .qa-btn{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--line); color:var(--text);
+    padding:10px 16px; border-radius:999px; font-size:13px; font-weight:500;
+    font-family:'Inter',sans-serif; cursor:pointer;
+  }
+  .qa-btn:active{ transform:scale(0.97); }
+  .qa-btn.primary{ background:var(--signal-soft); border-color:rgba(94,230,200,0.4); color:var(--signal); }
+  .qa-btn.done-btn{ background:var(--amber-soft); border-color:rgba(242,166,90,0.4); color:var(--amber); }
+
+  /* ---------- section headers ---------- */
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:28px 20px 10px;
+  }
+  .section-head h2{ font-size:15px; margin:0; font-family:'Space Grotesk',sans-serif; font-weight:600;}
+  .section-head span{ font-size:12px; color:var(--text-faint); }
+
+  /* ---------- timeline ---------- */
+  .timeline{ padding:0 20px; position:relative; }
+  .rail{
+    position:absolute; left:34px; top:6px; bottom:6px; width:1px; background:var(--line);
+  }
+  .item{
+    display:flex; gap:14px; padding:12px 0; position:relative;
+  }
+  .item .dot-col{ width:14px; display:flex; justify-content:center; padding-top:4px; }
+  .item .dot{
+    width:11px; height:11px; border-radius:50%; background:var(--surface-2);
+    border:2px solid var(--line); z-index:1;
+  }
+  .item.current .dot{ background:var(--signal); border-color:var(--signal); box-shadow:0 0 0 4px var(--signal-soft); }
+  .item.done .dot{ background:var(--amber); border-color:var(--amber); }
+  .item.missed .dot{ background:transparent; border-color:var(--rose); }
+  .card{
+    flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .item.current .card{ border-color:rgba(94,230,200,0.35); background:linear-gradient(180deg, rgba(94,230,200,0.06), transparent); }
+  .card-main .time{ font-size:12px; color:var(--text-faint); }
+  .card-main .title{ font-size:14.5px; font-weight:500; margin-top:2px; }
+  .card-main .title.done{ color:var(--text-muted); text-decoration:line-through; text-decoration-color:var(--text-faint); }
+  .check{
+    width:30px; height:30px; border-radius:50%; border:1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+    background:var(--surface-2); color:var(--text-faint); font-size:15px;
+  }
+  .check.on{ background:var(--amber); border-color:var(--amber); color:#1a1200; }
+
+  /* ---------- bottom bar ---------- */
+  .bottombar{
+    position:fixed; left:0; right:0; bottom:0;
+    display:flex; align-items:center; justify-content:space-around;
+    background:rgba(18,24,31,0.9); backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .bb-btn{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    background:none; border:none; color:var(--text-muted); font-size:11px;
+    font-family:'Inter',sans-serif; cursor:pointer; padding:6px 10px;
+  }
+  .bb-btn .ic{
+    width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--surface-2); border:1px solid var(--line);
+  }
+  .bb-btn.active .ic{ background:var(--signal-soft); border-color:rgba(94,230,200,0.4); color:var(--signal); }
+  .bb-btn.mic .ic.listening{ background:var(--rose); border-color:var(--rose); color:#fff; }
+
+  /* ---------- drawer ---------- */
+  .scrim{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); opacity:0; pointer-events:none;
+    transition:opacity .25s ease; z-index:20;
+  }
+  .scrim.open{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; left:0; right:0; bottom:0; background:var(--surface);
+    border-top:1px solid var(--line); border-radius:20px 20px 0 0;
+    padding:18px 20px calc(24px + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .3s ease; z-index:21;
+    max-height:78vh; overflow-y:auto;
+  }
+  .drawer.open{ transform:translateY(0); }
+  .drawer h3{ font-family:'Space Grotesk',sans-serif; font-size:16px; margin:0 0 14px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted); margin-bottom:6px; }
+  select, input[type=range]{ width:100%; }
+  select{
+    background:var(--surface-2); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px; font-family:'Inter',sans-serif; font-size:13px;
+  }
+  .row{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line); }
+  .row:last-child{ border-bottom:none; }
+  .switch{ width:42px; height:24px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); position:relative; cursor:pointer; flex-shrink:0; }
+  .switch .knob{ position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--text-faint); transition:.2s; }
+  .switch.on{ background:var(--signal-soft); border-color:rgba(94,230,200,.5); }
+  .switch.on .knob{ left:20px; background:var(--signal); }
+  .drawer-btn{
+    width:100%; padding:12px; border-radius:12px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--text); font-size:14px; margin-top:6px; cursor:pointer;
+  }
+
+  .toast{
+    position:fixed; left:50%; bottom:100px; transform:translate(-50%,10px); opacity:0;
+    background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:10px 16px; border-radius:999px; font-size:13px; z-index:30; pointer-events:none;
+    transition:.25s ease; white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  .empty-note{ padding:8px 20px 0; font-size:12px; color:var(--text-faint); }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div>
+      <div class="date mono" id="dateLabel">—</div>
+      <div class="clock mono" id="clockLabel">--:--</div>
+    </div>
+    <div class="streak-pill">🔥 <span id="streakLabel">0</span>-day streak</div>
+  </div>
+
+  <div class="orb-wrap">
+    <div class="orb-stage" id="orbStage">
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="orb" id="orb"></div>
+    </div>
+    <div class="task-status">
+      <div class="task-eyebrow" id="statusEyebrow">STANDING BY</div>
+      <div class="task-name" id="taskName">All quiet for now</div>
+      <div class="task-time mono" id="taskTime">—</div>
+      <div class="task-desc" id="taskDesc"></div>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <button class="qa-btn primary" id="speakNowBtn">🔊 Speak now</button>
+    <button class="qa-btn done-btn" id="markDoneBtn">✓ Mark done</button>
+    <button class="qa-btn" id="skipBtn">⤼ Skip</button>
+  </div>
+
+  <div class="section-head">
+    <h2>Today's routine</h2>
+    <span id="progressLabel">0 / 0 done</span>
+  </div>
+  <div class="timeline" id="timeline">
+    <div class="rail"></div>
+  </div>
+  <div class="empty-note">Tap a circle to mark a step complete — Jarvis will cheer you on out loud.</div>
+
+  <div class="bottombar">
+    <button class="bb-btn active" id="voiceToggleBtn">
+      <span class="ic" id="voiceIcon">🔊</span> Voice
+    </button>
+    <button class="bb-btn mic" id="micBtn">
+      <span class="ic" id="micIcon">🎙️</span> Ask
+    </button>
+    <button class="bb-btn" id="settingsBtn">
+      <span class="ic">⚙️</span> Settings
+    </button>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="drawer" id="drawer">
+    <h3>Jarvis settings</h3>
+
+    <div class="field">
+      <label>Voice</label>
+      <select id="voiceSelect"></select>
+    </div>
+    <div class="field">
+      <label>Speaking rate <span id="rateVal" class="mono">1.0×</span></label>
+      <input type="range" id="rateRange" min="0.7" max="1.3" step="0.05" value="1">
+    </div>
+    <div class="field">
+      <label>Volume <span id="volVal" class="mono">100%</span></label>
+      <input type="range" id="volRange" min="0" max="1" step="0.05" value="1">
+    </div>
+
+    <div class="row">
+      <div>
+        <div style="font-size:14px;">Announce each step</div>
+        <div style="font-size:12px;color:var(--text-faint);">Speaks aloud the moment a routine step starts</div>
+      </div>
+      <div class="switch on" id="announceSwitch"><div class="knob"></div></div>
+    </div>
+    <div class="row">
+      <div>
+        <div style="font-size:14px;">Gentle motivation nudges</div>
+        <div style="font-size:12px;color:var(--text-faint);">A short pep line every 45 min while awake</div>
+      </div>
+      <div class="switch on" id="nudgeSwitch"><div class="knob"></div></div>
+    </div>
+    <div class="row">
+      <div>
+        <div style="font-size:14px;">Push notifications</div>
+        <div style="font-size:12px;color:var(--text-faint);">Shows a banner alongside speech</div>
+      </div>
+      <div class="switch" id="notifSwitch"><div class="knob"></div></div>
+    </div>
+
+    <button class="drawer-btn" id="testVoiceBtn">Test voice</button>
+    <button class="drawer-btn" id="resetTodayBtn">Reset today's progress</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Routine data (from jarvis-daily-routine.ics) ---------------- */
+const ROUTINE = [
+  { id:"wakeup",   start:"07:30", end:"07:35", title:"Wake up",                 desc:"Wake up and start the day." },
+  { id:"exercise", start:"08:00", end:"09:00", title:"Exercise",                desc:"Exercise session." },
+  { id:"bath1",    start:"09:00", end:"09:30", title:"Morning bath",            desc:"Take a bath and get ready for the office." },
+  { id:"office",   start:"09:30", end:"09:40", title:"Leave for office",        desc:"Leave for the office and check your essentials." },
+  { id:"japanese", start:"12:00", end:"12:30", title:"Learn Japanese",          desc:"Complete a focused Japanese-language study session." },
+  { id:"lunch",    start:"14:00", end:"14:30", title:"Lunch",                   desc:"Have lunch and take a short break." },
+  { id:"basket",   start:"19:00", end:"20:00", title:"Basket / basketball",     desc:"Time for your basket or basketball activity." },
+  { id:"bath2",    start:"22:00", end:"22:20", title:"Evening bath",            desc:"Take your evening bath." },
+  { id:"dinner",   start:"22:20", end:"23:30", title:"Dinner",                  desc:"Start dinner and finish by 11:30 PM." },
+  { id:"valuable", start:"23:30", end:"00:30", title:"Read or watch something valuable", desc:"Choose useful reading or viewing instead of mindless scrolling." },
+  { id:"sleep",    start:"00:30", end:"01:00", title:"Wind down and sleep",     desc:"Stop screens and aim to be asleep by 1:00 AM." },
+];
+
+const MOTIVATION = {
+  wakeup:   ["Rise and shine. The best version of today starts right now.", "Good morning. One good decision at a time, starting with getting up."],
+  exercise: ["Time to move. Future you is already thanking present you.", "Sweat now, shine later. Let's go."],
+  bath1:    ["Fresh start, fresh you. Get ready to take on the day.", "Wash off the sleep, step into the day sharp."],
+  office:   ["Grab your essentials and go get it. You've got this.", "Head out with intention — today's a good day to win."],
+  japanese: ["Thirty focused minutes. Your future fluent self says thank you.", "Small daily reps build big fluency. Let's study."],
+  lunch:    ["Refuel properly — a good afternoon starts with a good lunch.", "Take the break. You'll come back sharper."],
+  basket:   ["Ball time. Burn the stress off and have some fun.", "Get out there and play — you've earned this."],
+  bath2:    ["Rinse the day off. You made it through.", "Wind the pace down — the evening is yours."],
+  dinner:   ["Eat well, eat on time — your body will thank you tomorrow.", "Good dinner, good night ahead. Keep it on schedule."],
+  valuable: ["Skip the scroll. Feed your mind something worth keeping.", "An hour well spent beats an hour lost to the feed."],
+  sleep:    ["Screens off, lights down. Sleep is where progress compounds.", "Rest well — tomorrow's routine starts with tonight's sleep."]
+};
+const GENERIC_NUDGES = [
+  "Still with me? Small consistent steps are what the whole routine is built on.",
+  "You're doing better than you think. Keep the rhythm going.",
+  "Discipline is just remembering what you actually want. Stay on track.",
+  "One step at a time — that's the whole plan.",
+];
+
+/* ---------------- helpers ---------------- */
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2,"0");
+const toMinutes = (hhmm) => { const [h,m] = hhmm.split(":").map(Number); return h*60+m; };
+const todayKey = (d=new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+function nowMinutes(d=new Date()){ return d.getHours()*60 + d.getMinutes(); }
+
+// tasks after midnight (valuable end 00:30, sleep 00:30-01:00) are treated as
+// belonging to the *previous* day's routine cycle for ordering purposes.
+function taskWindow(t){
+  let s = toMinutes(t.start), e = toMinutes(t.end);
+  if (e <= s) e += 24*60; // crosses midnight
+  return {s,e};
+}
+
+/* ---------------- state ---------------- */
+const state = {
+  settings: Object.assign({
+    voiceURI: null, rate: 1, volume: 1,
+    announce: true, nudges: true, notif: false
+  }, JSON.parse(localStorage.getItem("jarvis_settings") || "{}")),
+  progress: JSON.parse(localStorage.getItem(`jarvis_progress_${todayKey()}`) || "{}"),
+  history: JSON.parse(localStorage.getItem("jarvis_history") || "{}"),
+  announced: JSON.parse(localStorage.getItem(`jarvis_announced_${todayKey()}`) || "{}"),
+  lastNudge: 0,
+};
+
+function saveProgress(){
+  localStorage.setItem(`jarvis_progress_${todayKey()}`, JSON.stringify(state.progress));
+  state.history[todayKey()] = state.progress;
+  localStorage.setItem("jarvis_history", JSON.stringify(state.history));
+}
+function saveSettings(){ localStorage.setItem("jarvis_settings", JSON.stringify(state.settings)); }
+function saveAnnounced(){ localStorage.setItem(`jarvis_announced_${todayKey()}`, JSON.stringify(state.announced)); }
+
+function computeStreak(){
+  let streak = 0;
+  let d = new Date();
+  // count today only if fully done, then walk backwards
+  for(let i=0;i<365;i++){
+    const key = todayKey(d);
+    const rec = state.history[key] || {};
+    const doneCount = ROUTINE.filter(t => rec[t.id]).length;
+    const isToday = i===0;
+    if(doneCount === ROUTINE.length){ streak++; }
+    else if(isToday){ /* today incomplete is fine, don't break streak yet */ }
+    else break;
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+
+/* ---------------- speech ---------------- */
+let voices = [];
+function loadVoices(){
+  voices = speechSynthesis.getVoices();
+  const sel = $("voiceSelect");
+  sel.innerHTML = "";
+  voices.forEach((v,i) => {
+    const opt = document.createElement("option");
+    opt.value = v.voiceURI; opt.textContent = `${v.name} (${v.lang})`;
+    if(v.voiceURI === state.settings.voiceURI) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if(!state.settings.voiceURI && voices.length){
+    const preferred = voices.find(v => /en-IN|en-GB|en-US/.test(v.lang)) || voices[0];
+    state.settings.voiceURI = preferred.voiceURI;
+    sel.value = preferred.voiceURI;
+    saveSettings();
+  }
+}
+if("speechSynthesis" in window){
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+
+function speak(text){
+  if(!("speechSynthesis" in window)) return showToast("Voice isn't supported in this browser");
+  if(!state.settings.announce && !text.__forced) { /* still allow explicit calls */ }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = voices.find(v => v.voiceURI === state.settings.voiceURI);
+  if(v) u.voice = v;
+  u.rate = state.settings.rate;
+  u.volume = state.settings.volume;
+  u.onstart = () => document.body.classList.add("speaking");
+  u.onend = () => document.body.classList.remove("speaking");
+  u.onerror = () => document.body.classList.remove("speaking");
+  speechSynthesis.speak(u);
+}
+
+function notify(title, body){
+  if(!state.settings.notif) return;
+  if("Notification" in window && Notification.permission === "granted"){
+    try{ new Notification(title, {body, icon:"icon-192.png"}); }catch(e){}
+  }
+}
+
+/* ---------------- schedule logic ---------------- */
+function getCurrentAndNext(){
+  const n = nowMinutes();
+  let current = null, next = null, nextIn = Infinity;
+  for(const t of ROUTINE){
+    const {s,e} = taskWindow(t);
+    if(n>=s && n<e){ current = t; }
+    let delta = s - n; if(delta < 0) delta += 24*60;
+    if(delta < nextIn){ nextIn = delta; next = t; }
+  }
+  return {current, next};
+}
+
+function statusFor(t){
+  const {s,e} = taskWindow(t);
+  const n = nowMinutes();
+  if(state.progress[t.id]) return "done";
+  if(n>=s && n<e) return "current";
+  if(n>=e && e<=24*60) return "missed"; // already passed today and not done
+  return "upcoming";
+}
+
+function fmtTime(hhmm){
+  const [h,m] = hhmm.split(":").map(Number);
+  const ampm = h>=12 ? "PM" : "AM";
+  const h12 = ((h+11)%12)+1;
+  return `${h12}:${pad(m)} ${ampm}`;
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  const now = new Date();
+  $("dateLabel").textContent = now.toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"});
+  $("clockLabel").textContent = now.toLocaleTimeString(undefined,{hour:"2-digit", minute:"2-digit"});
+  $("streakLabel").textContent = computeStreak();
+
+  const {current, next} = getCurrentAndNext();
+  if(current){
+    $("statusEyebrow").textContent = "IN PROGRESS";
+    $("statusEyebrow").classList.add("live");
+    $("taskName").textContent = current.title;
+    $("taskTime").textContent = `${fmtTime(current.start)} – ${fmtTime(current.end)}`;
+    $("taskDesc").textContent = current.desc;
+  } else if(next){
+    $("statusEyebrow").textContent = "UP NEXT";
+    $("statusEyebrow").classList.remove("live");
+    $("taskName").textContent = next.title;
+    $("taskTime").textContent = fmtTime(next.start);
+    $("taskDesc").textContent = next.desc;
+  } else {
+    $("statusEyebrow").textContent = "STANDING BY";
+    $("statusEyebrow").classList.remove("live");
+    $("taskName").textContent = "Nothing scheduled";
+    $("taskTime").textContent = "—";
+    $("taskDesc").textContent = "";
+  }
+
+  const doneCount = ROUTINE.filter(t => state.progress[t.id]).length;
+  $("progressLabel").textContent = `${doneCount} / ${ROUTINE.length} done`;
+
+  const tl = $("timeline");
+  tl.querySelectorAll(".item").forEach(n => n.remove());
+  ROUTINE.forEach(t => {
+    const st = statusFor(t);
+    const item = document.createElement("div");
+    item.className = `item ${st}`;
+    item.innerHTML = `
+      <div class="dot-col"><div class="dot"></div></div>
+      <div class="card">
+        <div class="card-main">
+          <div class="time mono">${fmtTime(t.start)} – ${fmtTime(t.end)}</div>
+          <div class="title ${st==='done'?'done':''}">${t.title}</div>
+        </div>
+        <div class="check ${st==='done'?'on':''}" data-id="${t.id}">${st==='done' ? '✓' : ''}</div>
+      </div>`;
+    tl.appendChild(item);
+  });
+  tl.querySelectorAll(".check").forEach(c => {
+    c.addEventListener("click", () => toggleDone(c.dataset.id));
+  });
+}
+
+function toggleDone(id, {silent=false}={}){
+  const wasDone = !!state.progress[id];
+  state.progress[id] = !wasDone;
+  saveProgress();
+  render();
+  if(!wasDone && !silent){
+    const lines = MOTIVATION[id] || GENERIC_NUDGES;
+    const line = lines[Math.floor(Math.random()*lines.length)];
+    speak(`Nice. ${line}`);
+    showToast("Marked done — nice work");
+  }
+}
+
+/* ---------------- announcements & nudges ---------------- */
+function tick(){
+  render();
+  const n = nowMinutes();
+  for(const t of ROUTINE){
+    const s = toMinutes(t.start);
+    if(s === n && !state.announced[t.id + "_" + todayKey()] && state.settings.announce){
+      state.announced[t.id + "_" + todayKey()] = true;
+      saveAnnounced();
+      const lines = MOTIVATION[t.id] || GENERIC_NUDGES;
+      const line = lines[Math.floor(Math.random()*lines.length)];
+      speak(`${t.title}. ${t.desc} ${line}`);
+      notify(`Jarvis: ${t.title}`, t.desc);
+    }
+  }
+  // gentle nudges every ~45 min if enabled and nothing just announced
+  const nowTs = Date.now();
+  if(state.settings.nudges && nowTs - state.lastNudge > 45*60*1000){
+    state.lastNudge = nowTs;
+    // only nudge during a reasonable stretch, not right on a task boundary
+    const {current} = getCurrentAndNext();
+    if(!current){
+      const line = GENERIC_NUDGES[Math.floor(Math.random()*GENERIC_NUDGES.length)];
+      speak(line);
+    }
+  }
+}
+
+/* ---------------- UI wiring ---------------- */
+$("speakNowBtn").addEventListener("click", () => {
+  const {current, next} = getCurrentAndNext();
+  const t = current || next;
+  if(!t) return speak("Nothing scheduled right now.");
+  const lines = MOTIVATION[t.id] || GENERIC_NUDGES;
+  const line = lines[Math.floor(Math.random()*lines.length)];
+  const lead = current ? `Right now: ${t.title}.` : `Up next: ${t.title} at ${fmtTime(t.start)}.`;
+  speak(`${lead} ${t.desc} ${line}`);
+});
+
+$("markDoneBtn").addEventListener("click", () => {
+  const {current, next} = getCurrentAndNext();
+  const t = current || next;
+  if(!t) return showToast("Nothing to mark right now");
+  toggleDone(t.id);
+});
+
+$("skipBtn").addEventListener("click", () => {
+  const {current} = getCurrentAndNext();
+  if(!current) return showToast("Nothing active to skip");
+  showToast(`Skipped: ${current.title}`);
+  speak(`Alright, skipping ${current.title}. Back on track for the next one.`);
+});
+
+let voiceEnabled = true;
+$("voiceToggleBtn").addEventListener("click", () => {
+  voiceEnabled = !voiceEnabled;
+  state.settings.announce = voiceEnabled;
+  saveSettings();
+  $("voiceIcon").textContent = voiceEnabled ? "🔊" : "🔈";
+  $("voiceToggleBtn").classList.toggle("active", voiceEnabled);
+  $("announceSwitch").classList.toggle("on", voiceEnabled);
+  if(!voiceEnabled) speechSynthesis.cancel();
+  showToast(voiceEnabled ? "Voice on" : "Voice muted");
+});
+
+/* settings drawer */
+function openDrawer(){ $("drawer").classList.add("open"); $("scrim").classList.add("open"); }
+function closeDrawer(){ $("drawer").classList.remove("open"); $("scrim").classList.remove("open"); }
+$("settingsBtn").addEventListener("click", openDrawer);
+$("scrim").addEventListener("click", closeDrawer);
+
+$("voiceSelect").addEventListener("change", (e) => { state.settings.voiceURI = e.target.value; saveSettings(); });
+$("rateRange").addEventListener("input", (e) => { state.settings.rate = parseFloat(e.target.value); $("rateVal").textContent = state.settings.rate.toFixed(2)+"×"; saveSettings(); });
+$("volRange").addEventListener("input", (e) => { state.settings.volume = parseFloat(e.target.value); $("volVal").textContent = Math.round(state.settings.volume*100)+"%"; saveSettings(); });
+
+function bindSwitch(el, key, onToggle){
+  el.classList.toggle("on", !!state.settings[key]);
+  el.addEventListener("click", () => {
+    state.settings[key] = !state.settings[key];
+    el.classList.toggle("on", state.settings[key]);
+    saveSettings();
+    if(onToggle) onToggle(state.settings[key]);
+  });
+}
+bindSwitch($("announceSwitch"), "announce", (v) => {
+  voiceEnabled = v;
+  $("voiceIcon").textContent = v ? "🔊" : "🔈";
+  $("voiceToggleBtn").classList.toggle("active", v);
+});
+bindSwitch($("nudgeSwitch"), "nudges");
+bindSwitch($("notifSwitch"), "notif", (v) => {
+  if(v && "Notification" in window && Notification.permission !== "granted"){
+    Notification.requestPermission().then(p => {
+      if(p !== "granted"){ state.settings.notif = false; $("notifSwitch").classList.remove("on"); saveSettings(); showToast("Notifications blocked"); }
+    });
+  }
+});
+
+$("testVoiceBtn").addEventListener("click", () => speak("This is how I'll sound when I guide you through the day."));
+$("resetTodayBtn").addEventListener("click", () => {
+  state.progress = {};
+  saveProgress();
+  render();
+  showToast("Today's progress reset");
+});
+
+/* mic / voice commands */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizing = false, recognizer = null;
+if(SR){
+  recognizer = new SR();
+  recognizer.lang = "en-IN";
+  recognizer.interimResults = false;
+  recognizer.maxAlternatives = 1;
+  recognizer.onstart = () => { recognizing = true; $("micIcon").classList.add("listening"); };
+  recognizer.onend = () => { recognizing = false; $("micIcon").classList.remove("listening"); };
+  recognizer.onerror = () => { recognizing = false; $("micIcon").classList.remove("listening"); };
+  recognizer.onresult = (e) => {
+    const text = e.results[0][0].transcript.toLowerCase();
+    handleCommand(text);
+  };
+}
+$("micBtn").addEventListener("click", () => {
+  if(!SR) return showToast("Voice commands aren't supported on this browser");
+  if(recognizing){ recognizer.stop(); return; }
+  try{ recognizer.start(); }catch(e){}
+});
+
+function handleCommand(text){
+  showToast(`Heard: "${text}"`);
+  const {current, next} = getCurrentAndNext();
+  if(/next|what.?s (coming|up)/.test(text)){
+    const t = next;
+    speak(t ? `Next up: ${t.title} at ${fmtTime(t.start)}.` : "Nothing else scheduled today.");
+  } else if(/done|complete|finished/.test(text)){
+    const t = current || next;
+    if(t){ toggleDone(t.id); } else speak("Nothing active to mark done.");
+  } else if(/motivat|encourage|pep/.test(text)){
+    const line = GENERIC_NUDGES[Math.floor(Math.random()*GENERIC_NUDGES.length)];
+    speak(line);
+  } else if(/mute|quiet|silence/.test(text)){
+    state.settings.announce = false; voiceEnabled = false; saveSettings();
+    $("voiceIcon").textContent = "🔈"; $("voiceToggleBtn").classList.remove("active");
+    speak("Muted.");
+  } else if(/unmute|speak up/.test(text)){
+    state.settings.announce = true; voiceEnabled = true; saveSettings();
+    $("voiceIcon").textContent = "🔊"; $("voiceToggleBtn").classList.add("active");
+    speak("Unmuted.");
+  } else if(/current|now|status/.test(text)){
+    speak(current ? `Right now: ${current.title}.` : "Nothing scheduled at the moment.");
+  } else {
+    speak("You can ask what's next, ask me to motivate you, or say mark done.");
+  }
+}
+
+/* toast */
+let toastTimer;
+function showToast(msg){
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+/* init */
+$("rateVal").textContent = state.settings.rate.toFixed(2)+"×";
+$("volVal").textContent = Math.round(state.settings.volume*100)+"%";
+$("rateRange").value = state.settings.rate;
+$("volRange").value = state.settings.volume;
+voiceEnabled = state.settings.announce;
+$("voiceIcon").textContent = voiceEnabled ? "🔊" : "🔈";
+$("voiceToggleBtn").classList.toggle("active", voiceEnabled);
+
+render();
+setInterval(tick, 15000);
+tick();
+
+/* service worker (only works when served over http/https) */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
